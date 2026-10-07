@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Тир-лист Золотого мяча 2026</title>
+    <style>
+        body { background-color: #121212; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; }
+        h1 { text-align: center; color: #f39c12; }
+        .desc { text-align: center; color: #aaa; margin-bottom: 20px; font-size: 14px; }
+        .box { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; margin-bottom: 15px; display: flex; min-height: 100px; }
+        .label { width: 130px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; color: #fff; text-align: center; }
+        .zone { flex-grow: 1; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; align-content: flex-start; }
+        .card { background: #2f3542; border: 1px solid #485460; border-radius: 6px; width: 90px; padding: 6px; text-align: center; cursor: pointer; user-select: none; }
+        .card:hover { background: #57606f; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #111; margin: 0 auto 4px auto; display: block; border: 1px solid #f39c12; }
+        .name { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+        .pool { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; padding: 15px; }
+        .pool-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 120px; }
+        /* Модалка */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
+        .modal-content { background: #222; padding: 20px; border-radius: 8px; width: 350px; border: 1px solid #444; color: #fff; position: relative; }
+        .close { position: absolute; top: 10px; right: 15px; cursor: pointer; color: #aaa; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+    <h1>Тир-лист Золотого Мяча 2026</h1>
+    <div class="desc">Перетаскивай карточки. Кликни на игрока, чтобы открыть его статистику. В GOAT — только 1 человек.</div>
+
+    <!-- Тиры -->
+    <div class="box">
+        <div class="label" style="background: #ff4757;">GOAT (1)</div>
+        <div class="zone" id="t-goat" ondragover="allow(event)" ondrop="drop(event, 1)"></div>
+    </div>
+    <div class="box">
+        <div class="label" style="background: #ffa502;">Хорош</div>
+        <div class="zone" id="t-good" ondragover="allow(event)" ondrop="drop(event)"></div>
+    </div>
+    <div class="box">
+        <div class="label" style="background: #2ed573;">Норм</div>
+        <div class="zone" id="t-norm" ondragover="allow(event)" ondrop="drop(event)"></div>
+    </div>
+    <div class="box">
+        <div class="label" style="background: #747d8c;">Бездарь</div>
+        <div class="zone" id="t-bad" ondragover="allow(event)" ondrop="drop(event)"></div>
+    </div>
+
+    <!-- Пул игроков -->
+    <div class="pool">
+        <div style="margin-bottom: 8px; font-weight: bold; color: #ddd;">Номинанты (30):</div>
+        <div class="pool-list" id="p-pool" ondragover="allow(event)" ondrop="dropPool(event)"></div>
+    </div>
+
+    <!-- Модальное окно -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">✕</span>
+            <h3 id="m-title" style="color: #f39c12; margin-bottom: 10px;"></h3>
+            <p id="m-text" style="font-size: 14px; line-height: 1.4; color: #ddd;"></p>
+        </div>
+    </div>
+
+    <script>
+        // Используем надежный генератор аватарок по инициалам с красивым фоном, либо можно заменить на реальные ссылки на фото
+        const players = [
+            { id: "p1", name: "Джуд Беллингем", club: "Реал Мадрид", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR8pmRtka0FTRmkZ9hW-wfJq8AHQv1qOevfiTic0htLVw&s=10", stats: "Матчи: 52 | Голы: 15 | Ассисты: 6 | Трофеи: —" },
+            { id: "p2", name: "Пау Кубарси", club: "Барселона", img: "https://www.fcbarcelona.com/photo-resources/2026/07/21/e96de4b6-5d94-400e-9f70-d1f745243818/02-Cubarsi-BLUE.jpg?width=1200&height=750", stats: "Матчи: 62 | Голы: 1 | Ассисты: 2 | Трофеи: ЧМ, Ла Лига, Суперкубок Испании" },
+            { id: "p3", name: "Марк Кукурелья", club: "Челси / Реал Мадрид", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTbDrirTaNAcbfI_2wb3zBPtRYQGN8U0_snnbQEKCPXwA&s=10", stats: "Матчи: 65 | Голы: 2 | Ассисты: 7 | Трофеи: ЧМ" },
+            { id: "p4", name: "Усман Дембеле", club: "ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSGCfCBgS6bP4Cr2nPYC6_51hREFrxMXSo3Yss5-rBioA&s=10", stats: "Матчи: 51 | Голы: 26 | Ассисты: 14 | Трофеи: ЛЧ, Межконтинентальный кубок, Суперкубок Европы, Лига 1, Суперкубок Франции" },
+            { id: "p5", name: "Луис Диас", club: "Бавария", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ59JOSRlhUCvVrMQsRR5XTK4PI_gz3thjhdo2X8p5RkA&s=10", stats: "Матчи: 66 | Голы: 30 | Ассисты: 23 | Трофеи: Бундеслига, Кубок Германии, Суперкубок Германии" },
+            { id: "p6", name: "Бруну Фернандеш", club: "Манчестер Юнайтед", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTBAl6Op2n5Wncg5Dtc_ZMj8vm5nUURlEb1c7OVJIHQTw&s=10", stats: "Матчи: 51 | Голы: 13 | Ассисты: 25 | Трофеи: —" },
+            { id: "p7", name: "Габриэл Магальяйнс", club: "Арсенал", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSZbXxItwiL87BA2H0B9cUjfqAjawOdAtVOPbyHaoNRPg&s=10", stats: "Матчи: 59 | Голы: 4 | Ассисты: 6 | Трофеи: АПЛ" },
+            { id: "p8", name: "Эрлинг Холанд", club: "Манчестер Сити", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYislAiB0mfZA9_r_YA5BfHLHMxxbAZWJnBsbAh4kP6w&s=10", stats: "Матчи: 64 | Голы: 58 | Ассисты: 11 | Трофеи: Кубок Англии, Кубок лиги" },
+            { id: "p9", name: "Ашраф Хакими", club: "ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS1QzR6hK8wG7bzZwvGDQ91obWyT2ti5YPRMU1EHrI5Ww&s=10", stats: "Матчи: 49 | Голы: 4 | Ассисты: 17 | Трофеи: ЛЧ, Суперкубок Европы, Лига 1, КАН*" },
+            { id: "p10", name: "Харри Кейн", club: "Бавария", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQYU8ei1ZPSeb_X3zJiWRqeWvUXGfo8cDm-gz_z4lzWdQ&s=10", stats: "Матчи: 65 | Голы: 73 (лучший) | Ассисты: 8 | Трофеи: Бундеслига, Кубок Германии, Суперкубок Германии" },
+            { id: "p11", name: "Хвича Кварацхелия", club: "ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQTjTJrCWAIOtfXVmzk73blMfkTzJMFJ-Ko09u3k2SDFg&s", stats: "Матчи: 57 | Голы: 24 | Ассисты: 10 | Трофеи: ЛЧ, Межконтинентальный кубок, Суперкубок Европы, Лига 1, Суперкубок Франции" },
+            { id: "p12", name: "Ламин Ямаль", club: "Барселона", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcToeJmgO0lsoRZqpjLtitwK1e3EnOSUsz13QWmQ90ujUQ&s=10", stats: "Матчи: 57 | Голы: 25 | Ассисты: 20 | Трофеи: ЧМ, Ла Лига, Суперкубок Испании" },
+            { id: "p13", name: "Садио Мане", club: "Аль-Наср", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_CzXHAm55fL16R4h6z3gzhXWRGDHfCyOzl0aLEVyzJA&s=10", stats: "Матчи: 55 | Голы: 24 | Ассисты: 13 | Трофеи: Чемпион Саудовской Аравии" },
+            { id: "p14", name: "Маркиньос", club: "ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdVFptKP4Clz5RTBi6aUy9t2iTvD9nSfjhjWvvu-Pd5A&s=10", stats: "Матчи: 43 | Голы: 2 | Ассисты: 0 | Трофеи: ЛЧ, Межконтинентальный кубок, Суперкубок Европы, Лига 1, Суперкубок Франции" },
+            { id: "p15", name: "Лаутаро Мартинес", club: "Интер", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1gR16CteVt-Vj0TVeUESCoJdbeECi5ZxtoZuBIsunhw&s=10", stats: "Матчи: 55 | Голы: 30 | Ассисты: 10 | Трофеи: Серия А, Кубок Италии" },
+            { id: "p16", name: "Килиан Мбаппе", club: "Реал Мадрид", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjny0dqXVAnVWeFlvPziy4V-cM5h-bYXahrpAonmhKlg&s=10", stats: "Матчи: 60 | Голы: 58 | Ассисты: 13 | Трофеи: — (лучший бомбардир Ла Лиги и ЛЧ до ЧМ)" },
+            { id: "p17", name: "Нуну Мендеш", club: "ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSw4KadkD1yJ13wJXXNjVxe0aZ86kJTSzCyy5YrKbKh_g&s=10", stats: "Матчи: 53 | Голы: 7 | Ассисты: 8 | Трофеи: ЛЧ, Межконтинентальный кубок, Суперкубок Европы, Лига 1, Суперкубок Франции" },
+            { id: "p18", name: "Лионель Месси", club: "Интер Майами", img: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg/250px-Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg?utm_source=ru.wikipedia.org&utm_campaign=parser&utm_content=thumbnail", stats: "Матчи: 49 | Голы: 45 | Ассисты: 30 | Трофеи: MLS" },
+            { id: "p19", name: "Жоау Невеш", club: "ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpe4om8mujw4T2cPfMHankOkmD3RBlCzeDZv3yThm5bw&s=10", stats: "Матчи: 49 | Голы: 1 | Ассисты: 14 | Трофеи: ЛЧ, Межконтинентальный кубок, Лига 1, Суперкубок Франции" },
+            { id: "p20", name: "Майкл Олисе", club: "Бавария", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRbBfAmCFHXvEvBmIJRETtfit5unk0GHlahuV841gBKnA&s=10", stats: "Матчи: 69 | Голы: 27 | Ассисты: 35 (лучший ассистент) | Трофеи: Бундеслига, Кубок Германии, Суперкубок Германии" },
+            { id: "p21", name: "Вильям Пачо", club: "ПСЖ", img: "https://cdn-img.staticzz.com/img/jogadores/new/73/07/627307_willian_pacho_20250616000531.png", stats: "Матчи: 56 | Голы: 2 | Ассисты: 1 | Трофеи: ЛЧ, Межконтинентальный кубок, Суперкубок Европы, Лига 1, Суперкубок Франции" },
+            { id: "p22", name: "Хулиан Киньонес", club: "Аль-Кадисия", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZe3i_DZfvTsM-qL2Kv7ZEG8DP4F9IHxvnXukYCkMvyA&s=10", stats: "Матчи: 46 | Голы: 41 | Ассисты: 5 | Трофеи: —" },
+            { id: "p23", name: "Деклан Райс", club: "Арсенал", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTIMHJzUHDa04n5RPQxtj7h4Ql2TQs7EmADzHRWyaqcHA&s=10", stats: "Матчи: 69 | Голы: 8 | Ассисты: 14 | Трофеи: АПЛ" },
+            { id: "p24", name: "Родри", club: "Манчестер Сити / Барселона", img: "https://upload.wikimedia.org/wikipedia/commons/7/7a/Rodri_Argentina_v_Spain_19_July_2026-187_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=index&utm_content=original", stats: "Матчи: 46 | Голы: 2 | Ассисты: 0 | Трофеи: ЧМ, Кубок Англии, Кубок лиги" },
+            { id: "p25", name: "Фабиан Руис", club: "ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRqiAKE_N88BvxbocJc3zn32_7JRVIocBz3cxGwltwjUg&s=10", stats: "Матчи: 45 | Голы: 3 | Ассисты: 6 | Трофеи: ЧМ, ЛЧ, Межконтинентальный кубок, Суперкубок Европы, Лига 1, Суперкубок Франции" },
+            { id: "p26", name: "Уильям Салиба", club: "Арсенал", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6nlP2YfpmpW-0zp7nd3P2rodVHcgZ_p2X7t5OsPVW5Q&s=10", stats: "Матчи: 60 | Голы: 1 | Ассисты: 1 | Трофеи: АПЛ" },
+            { id: "p27", name: "Ферран Торрес", club: "Барселона / ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQXhTZaTO3yidKJ_4ih35yGRaC__b27oOZGEvztD3_0XQ&s=10", stats: "Матчи: 65 | Голы: 25 | Ассисты: 7 | Трофеи: ЧМ, Ла Лига, Суперкубок Испании" },
+            { id: "p28", name: "Дайо Упамекано", club: "Бавария", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQIp1fxRviNHAsPZxPtGiyknvlYivBgz1rAQ-oM9cpzzQ&s=10", stats: "Матчи: 58 | Голы: 2 | Ассисты: 4 | Трофеи: Бундеслига, Кубок Германии, Суперкубок Германии" },
+            { id: "p29", name: "Винисиус Жуниор", club: "Реал Мадрид", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT-5NgdXlb9goebiGKUuPrfvKn0T39zSj0Z3TqK-Bq7pQ&s=10", stats: "Матчи: 66 | Голы: 28 | Ассисты: 16 | Трофеи: —" },
+            { id: "p30", name: "Витинья", club: "ПСЖ", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-zbUZmbGE1BjCajLcUIs-3neIW6WX4qehkM7oPqA5A&s", stats: "Матчи: 64 | Голы: 7 | Ассисты: 10 | Трофеи: ЛЧ, Межконтинентальный кубок, Суперкубок Европы, Лига 1, Суперкубок Франции" }
+        ];
+
+        const pool = document.getElementById("p-pool");
+
+        function init() {
+            pool.innerHTML = "";
+            players.forEach(p => {
+                const el = document.createElement("div");
+                el.className = "card";
+                el.draggable = true;
+                el.id = p.id;
+                el.ondragstart = (e) => e.dataTransfer.setData("text", e.target.id);
+                el.onclick = () => openModal(p);
+                el.innerHTML = `<img src="${p.img}" class="avatar" alt=""><div class="name">${p.name}</div>`;
+                pool.appendChild(el);
+            });
+        }
+
+        function allow(e) { e.preventDefault(); }
+
+        function drop(e, limit = 0) {
+            e.preventDefault();
+            const id = e.dataTransfer.getData("text");
+            const card = document.getElementById(id);
+            let target = e.target.closest(".zone");
+            if (limit === 1 && target.children.length > 0) {
+                alert("В GOAT можно поставить только 1 игрока!");
+                return;
+            }
+            if (target) target.appendChild(card);
+        }
+
+        function dropPool(e) {
+            e.preventDefault();
+            const id = e.dataTransfer.getData("text");
+            pool.appendChild(document.getElementById(id));
+        }
+
+        function openModal(p) {
+            document.getElementById("m-title").innerText = `${p.name} (${p.club})`;
+            document.getElementById("m-text").innerHTML = `<b>Статистика сезона 2025/26:</b><br><br>${p.stats}`;
+            document.getElementById("modal").style.display = "flex";
+        }
+
+        function closeModal() {
+            document.getElementById("modal").style.display = "none";
+        }
+
+        init();
+    </script>
+</body>
+</html>
